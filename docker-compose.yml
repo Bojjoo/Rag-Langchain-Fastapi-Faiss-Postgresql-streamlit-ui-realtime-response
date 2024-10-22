@@ -1,0 +1,59 @@
+services:
+  fastapi:
+    build: .
+    container_name: my_fastapi_app
+    networks:
+      my_custom_network:
+        ipv4_address: 172.19.0.5
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+      - ./data:/app/data  # Mount thư mục data từ local vào container
+      - ./vectorstores:/app/vectorstores  # Mount thư mục vectorstores từ local vào container
+    environment:
+      - ENV=development
+    depends_on:
+      - postgres
+
+  streamlit:
+    image: python:3.11
+    container_name: streamlit_app
+    networks:
+      my_custom_network:
+        ipv4_address: 172.19.0.3
+    working_dir: /app
+    volumes:
+      - .:/app  # Chỉ mount mã nguồn để chạy giao diện UI
+    ports:
+      - "8501:8501"
+    command: >
+      bash -c "pip install --no-cache-dir -r requirements.txt && streamlit run ui.py"
+    depends_on:
+      - postgres
+
+  postgres:
+    image: postgres
+    container_name: postgres_db
+    networks:
+      my_custom_network:
+        ipv4_address: 172.19.0.4
+    environment:
+      POSTGRES_USER: bojjoo
+      POSTGRES_PASSWORD: 12345678
+      POSTGRES_DB: rag_1
+    ports:
+      - "5555:5432"
+    volumes:
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./pgdata/data:/var/lib/postgresql/data  # Volume để lưu trữ database PostgreSQL
+
+volumes:
+  pgdata:
+
+networks:
+  my_custom_network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.19.0.0/24
